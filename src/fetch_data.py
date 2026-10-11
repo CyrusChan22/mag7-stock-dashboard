@@ -1,0 +1,133 @@
+# 取数脚本：用 yfinance 下载 13 只股票的日线数据，写入本地 MySQL
+# 运行方法（在项目文件夹里）：python src/fetch_data.py
+# 可以反复运行：已有的数据会被更新，不会重复
+import os
+
+import pymysql
+import yfinance as yf
+from dotenv import load_dotenv
+
+# 数据开始日期
+START_DATE = "2015-01-01"
+
+# 股票清单：代码 → (公司名, 分组)
+STOCKS = {
+    "AAPL": ("Apple Inc.", "mag7"),
+    "MSFT": ("Microsoft Corporation", "mag7"),
+    "NVDA": ("NVIDIA Corporation", "mag7"),
+    "GOOGL": ("Alphabet Inc.", "mag7"),
+    "AMZN": ("Amazon.com, Inc.", "mag7"),
+    "META": ("Meta Platforms, Inc.", "mag7"),
+    "TSLA": ("Tesla, Inc.", "mag7"),
+    "MU": ("Micron Technology, Inc.", "memory"),
+    "WDC": ("Western Digital Corporation", "memory"),
+    "SNDK": ("Sandisk Corporation", "memory"),
+    "SPY": ("SPDR S&P 500 ETF Trust", "benchmark"),
+    "QQQ": ("Invesco QQQ Trust", "benchmark"),
+    "SOXX": ("iShares Semiconductor ETF", "benchmark"),
+}
+
+# yfinance 的列名 → 数据库里的列名
+# ETF 会多一列 Capital Gains，这里没列出来，后面只挑这 8 列，它就被丢掉了
+COLUMN_NAMES = {
+    "Open": "open",
+    "High": "high",
+    "Low": "low",
+    "Close": "close",
+    "Adj Close": "adj_close",
+    "Volume": "volume",
+    "Dividends": "dividends",
+    "Stock Splits": "stock_splits",
+}
+
+
+def get_connection():
+    """读取 .env 里的配置，连接 MySQL"""
+    load_dotenv()
+    conn = pymysql.connect(
+        host=os.getenv("MYSQL_HOST"),
+        port=int(os.getenv("MYSQL_PORT")),
+        user=os.getenv("MYSQL_USER"),
+        password=os.getenv("MYSQL_PASSWORD"),
+        database=os.getenv("MYSQL_DATABASE"),
+    )
+    return conn
+
+
+def save_stocks(conn):
+    """把股票清单写进 stocks 表（有外键，必须先写这张表）"""
+    # %s 是占位符，pymysql 会把数据安全地填进去
+    # AS new 给这次要插入的值起个名字；主键已存在时，就用 new 里的值更新
+    sql = """
+        INSERT INTO stocks (ticker, name, category)
+        VALUES (%s, %s, %s) AS new
+        ON DUPLICATE KEY UPDATE name = new.name, category = new.category
+    """
+    rows = []
+    for ticker, (name, category) in STOCKS.items():
+        rows.append((ticker, name, category))
+
+    cursor = conn.cursor()
+    cursor.executemany(sql, rows)  # 一次执行多行
+    conn.commit()  # 提交，数据才真正存进数据库
+    print(f"stocks 表：写入 {len(rows)} 只股票")
+
+
+def download_prices(ticker):
+    """下载一只股票的日线数据，整理成和数据库一样的列名"""
+    df = yf.Ticker(ticker).history(start=START_DATE, auto_adjust=False)
+    df = df[list(COLUMN_NAMES.keys())]  # 只挑需要的 8 列
+    df = df.rename(columns=COLUMN_NAMES)  # 改成数据库里的列名
+    return df
+
+
+def save_prices(conn, ticker, df):
+    """把一只股票的价格写进 daily_prices 表"""
+    sql = """
+        INSERT INTO daily_prices
+            (ticker, trade_date, open, high, low, close, adj_close,
+             volume, dividends, stock_splits)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s) AS new
+        ON DUPLICATE KEY UPDATE
+            open = new.open, high = new.high, low = new.low,
+            close = new.close, adj_close = new.adj_close, volume = new.volume,
+            dividends = new.dividends, stock_splits = new.stock_splits
+    """
+    rows = []
+    for row in df.itertuples():
+        # row.Index 是带时区的时间，.date() 只取日期部分
+        # float()、int() 把 numpy 的数字类型转成 Python 自带的类型，pymysql 才认得
+        rows.append((
+            ticker,
+            row.Index.date(),
+            float(row.open),
+            float(row.high),
+            float(row.low),
+            float(row.close),
+            float(row.adj_close),
+            int(row.volume),
+            float(row.dividends),
+            float(row.stock_splits),
+        ))
+
+    cursor = conn.cursor()
+    cursor.executemany(sql, rows)
+    conn.commit()
+
+
+def main():
+    conn = get_connection()
+    save_stocks(conn)
+
+    for ticker in STOCKS:
+        df = download_prices(ticker)
+        save_prices(conn, ticker, df)
+        print(f"{ticker:5s}：{len(df)} 行，{df.index[0].date()} 至 {df.index[-1].date()}")
+
+    conn.close()
+    print("全部完成")
+
+
+# 直接运行这个文件时才执行 main()；被别的文件 import 时不执行
+if __name__ == "__main__":
+    main()
