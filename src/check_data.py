@@ -41,8 +41,9 @@ def check_big_moves(prices):
     adj_close = get_adj_close(prices)
     returns = adj_close.pct_change()  # 每只股票的日收益率 = 今天 / 昨天 - 1
 
-    # 宽表转回长表：stack() 把每个格子变成一行，并自动去掉 NaN
+    # 宽表转回长表：stack() 把每个格子变成一行（pandas 3 会保留 NaN 格子）
     returns = returns.stack()
+    # NaN 和任何数比较都是 False，所以空格子不会被筛进来
     big = returns[returns.abs() > BIG_MOVE]
     big = big.sort_values()  # 从跌得最多排到涨得最多
 
