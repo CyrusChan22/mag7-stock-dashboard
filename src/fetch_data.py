@@ -27,6 +27,12 @@ STOCKS = {
     "SOXX": ("iShares Semiconductor ETF", "benchmark"),
 }
 
+# 正式上市日：这天之前的数据不要
+# SNDK 从西部数据分拆，2025-02-13 至 02-21 是分拆前的预发行交易，成交稀少，不算正常行情
+LISTING_DATES = {
+    "SNDK": "2025-02-24",
+}
+
 # yfinance 的列名 → 数据库里的列名
 # ETF 会多一列 Capital Gains，这里没列出来，后面只挑这 8 列，它就被丢掉了
 COLUMN_NAMES = {
@@ -78,6 +84,9 @@ def download_prices(ticker):
     df = yf.Ticker(ticker).history(start=START_DATE, auto_adjust=False)
     df = df[list(COLUMN_NAMES.keys())]  # 只挑需要的 8 列
     df = df.rename(columns=COLUMN_NAMES)  # 改成数据库里的列名
+    # 有正式上市日的股票，只保留上市日及之后的行
+    if ticker in LISTING_DATES:
+        df = df.loc[LISTING_DATES[ticker]:]
     return df
 
 
