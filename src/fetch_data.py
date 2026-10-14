@@ -29,6 +29,7 @@ STOCKS = {
 
 # 正式上市日：这天之前的数据不要
 # SNDK 从西部数据分拆，2025-02-13 至 02-21 是分拆前的预发行交易，成交稀少，不算正常行情
+# ⭐⭐ 面试重点：SNDK 分拆前的预发行交易成交稀少、不是正常行情，所以从正式上市日 2025-02-24 开始取
 LISTING_DATES = {
     "SNDK": "2025-02-24",
 }
@@ -47,6 +48,7 @@ COLUMN_NAMES = {
 }
 
 
+# ⭐⭐⭐ 面试必背：数据库密码放在 .env 文件里，.gitignore 不上传，代码里不写死密码
 def get_connection():
     """读取 .env 里的配置，连接 MySQL"""
     load_dotenv()
@@ -60,9 +62,12 @@ def get_connection():
     return conn
 
 
+# ⭐⭐ 面试重点：daily_prices 有外键指向 stocks，所以必须先写 stocks 表
 def save_stocks(conn):
     """把股票清单写进 stocks 表（有外键，必须先写这张表）"""
+    # ⭐⭐ 面试重点：用 %s 占位符而不是拼接字符串，防止 SQL 注入
     # %s 是占位符，pymysql 会把数据安全地填进去
+    # ⭐⭐⭐ 面试必背：ON DUPLICATE KEY UPDATE —— 主键（ticker + 日期）已存在就更新、不存在就插入，所以脚本可以反复运行、不会重复
     # AS new 给这次要插入的值起个名字；主键已存在时，就用 new 里的值更新
     sql = """
         INSERT INTO stocks (ticker, name, category)
@@ -75,12 +80,14 @@ def save_stocks(conn):
 
     cursor = conn.cursor()
     cursor.executemany(sql, rows)  # 一次执行多行
+    # ⭐⭐ 面试重点：commit 之后数据才真正写进数据库（事务）
     conn.commit()  # 提交，数据才真正存进数据库
     print(f"stocks 表：写入 {len(rows)} 只股票")
 
 
 def download_prices(ticker):
     """下载一只股票的日线数据，整理成和数据库一样的列名"""
+    # ⭐⭐ 面试重点：auto_adjust=False 同时保留原始收盘价 close 和复权收盘价 adj_close；分析收益一律用 adj_close
     df = yf.Ticker(ticker).history(start=START_DATE, auto_adjust=False)
     df = df[list(COLUMN_NAMES.keys())]  # 只挑需要的 8 列
     df = df.rename(columns=COLUMN_NAMES)  # 改成数据库里的列名
