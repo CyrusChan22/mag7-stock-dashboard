@@ -67,7 +67,7 @@ def save_stocks(conn):
     """把股票清单写进 stocks 表（有外键，必须先写这张表）"""
     # ⭐⭐ 面试重点：用 %s 占位符而不是拼接字符串，防止 SQL 注入
     # %s 是占位符，pymysql 会把数据安全地填进去
-    # ⭐⭐⭐ 面试必背：ON DUPLICATE KEY UPDATE —— 主键（ticker + 日期）已存在就更新、不存在就插入，所以脚本可以反复运行、不会重复
+    # ⭐⭐⭐ 面试必背：ON DUPLICATE KEY UPDATE —— 主键（stocks 表是 ticker；daily_prices 表是 ticker + 日期）已存在就更新、不存在就插入，所以脚本可以反复运行、不会重复
     # AS new 给这次要插入的值起个名字；主键已存在时，就用 new 里的值更新
     sql = """
         INSERT INTO stocks (ticker, name, category)
@@ -79,6 +79,7 @@ def save_stocks(conn):
         rows.append((ticker, name, category))
 
     cursor = conn.cursor()
+    # ⭐ 了解：executemany 把整个元组列表批量发给数据库，比逐行 execute 快
     cursor.executemany(sql, rows)  # 一次执行多行
     # ⭐⭐ 面试重点：commit 之后数据才真正写进数据库（事务）
     conn.commit()  # 提交，数据才真正存进数据库
@@ -99,6 +100,7 @@ def download_prices(ticker):
 
 def save_prices(conn, ticker, df):
     """把一只股票的价格写进 daily_prices 表"""
+    # ⭐⭐⭐ 面试必背：价格表也要更新旧行 —— 每次分红后，历史上所有 adj_close 都会重新调整，重跑时只插新日期的话旧数据就过时了
     sql = """
         INSERT INTO daily_prices
             (ticker, trade_date, open, high, low, close, adj_close,
@@ -131,6 +133,7 @@ def save_prices(conn, ticker, df):
     conn.commit()
 
 
+# ⭐⭐ 面试重点：整体四步 —— 连接数据库 → 先写 stocks → 逐只下载价格 → 写 daily_prices
 def main():
     conn = get_connection()
     save_stocks(conn)

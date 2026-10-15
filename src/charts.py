@@ -7,6 +7,7 @@ import numpy as np
 from matplotlib.colors import LinearSegmentedColormap
 from scipy import stats
 
+from backtest import ma_crossover, equal_weight_monthly
 from correlation_beta import MAG7, daily_returns, correlation_matrix, rolling_correlation, beta_regression
 from data_loader import load_prices, get_adj_close
 
@@ -141,6 +142,37 @@ def plot_beta_scatter(returns, tickers, market="SPY"):
     save(fig, "beta_scatter.png")
 
 
+def plot_backtest_equity(adj_close):
+    """两个回测的净值曲线：左边均线交叉 vs 买入持有（SPY），右边七巨头等权 vs SPY"""
+    fig, (ax_ma, ax_ew) = plt.subplots(1, 2, figsize=(16, 6))
+
+    # 左图：SPY 均线交叉 vs 买入持有
+    strategy_equity, hold_equity, n_trades = ma_crossover(adj_close["SPY"].dropna())
+    ax_ma.plot(hold_equity.index, hold_equity, color=BLUE, linewidth=2, label="买入持有")
+    ax_ma.plot(strategy_equity.index, strategy_equity, color=ORANGE, linewidth=2,
+               label=f"50/200 均线交叉（交易 {n_trades} 次）")
+    ax_ma.set_title("回测 1：SPY 均线交叉 vs 买入持有")
+
+    # 右图：七巨头等权（月度再平衡）vs SPY
+    portfolio = equal_weight_monthly(adj_close, MAG7)
+    spy = adj_close["SPY"].loc[portfolio.index]
+    spy = spy / spy.iloc[0]  # 换算成起点 = 1 的净值
+    ax_ew.plot(portfolio.index, portfolio, color=ORANGE, linewidth=2, label="七巨头等权（月度再平衡）")
+    ax_ew.plot(spy.index, spy, color=BLUE, linewidth=2, label="SPY")  # SPY 两张图都用蓝色，颜色跟着标的走
+    # 对数刻度：涨 1 倍的距离都一样长，36 倍和 4 倍才能放在一张图里看清
+    ax_ew.set_yscale("log")
+    ax_ew.set_yticks([1, 2, 5, 10, 20, 40])  # 刻度直接写成倍数，不用 10 的几次方
+    ax_ew.yaxis.set_major_formatter(plt.FuncFormatter(lambda v, _: f"{v:g}"))
+    ax_ew.yaxis.set_minor_formatter(plt.NullFormatter())  # 不显示中间的小刻度文字
+    ax_ew.set_title("回测 2：七巨头等权 vs SPY（对数刻度）")
+
+    for ax in [ax_ma, ax_ew]:
+        ax.set_ylabel("净值（起点 = 1）")
+        ax.legend(frameon=False, loc="upper left")
+        ax.spines[["top", "right"]].set_visible(False)
+    save(fig, "backtest_equity.png")
+
+
 # 直接运行这个文件时，把图都画出来
 if __name__ == "__main__":
     adj_close = get_adj_close(load_prices())
@@ -151,3 +183,4 @@ if __name__ == "__main__":
     plot_correlation_heatmap(returns, MAG7 + ["SPY"])
     plot_rolling_correlation(returns, "AAPL", "MSFT")
     plot_beta_scatter(returns, ["MSFT", "TSLA"])
+    plot_backtest_equity(adj_close)
