@@ -30,7 +30,6 @@ def rolling_correlation(returns, ticker_a, ticker_b, window=60):
 # ⭐⭐⭐ 面试必背：CAPM 回归 —— Beta = 斜率（大盘涨 1% 个股涨多少），Alpha = 截距，R² = 被大盘解释的比例
 def beta_regression(returns, ticker, market="SPY"):
     """CAPM 回归：个股日收益 = Alpha + Beta × 大盘日收益 + 误差"""
-    # 只保留两者都有数据的日子
     # ⭐⭐ 面试重点：只保留两者都有数据的日子，回归要求 x 和 y 一一对应
     data = returns[[ticker, market]].dropna()
     result = stats.linregress(data[market], data[ticker])  # 自变量 x 是大盘，因变量 y 是个股
