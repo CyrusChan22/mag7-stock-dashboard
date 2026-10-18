@@ -1,8 +1,8 @@
-pandas
-numpy
-yfinance
-pymysql
-python-dotenv
-scipy
-matplotlib
-streamlit
+pandas==3.0.6
+numpy==2.5.3
+yfinance==1.7.0
+PyMySQL==1.2.3
+python-dotenv==1.2.4
+scipy==1.18.1
+matplotlib==3.11.2
+streamlit==1.65.0

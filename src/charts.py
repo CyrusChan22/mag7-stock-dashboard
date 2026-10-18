@@ -11,8 +11,8 @@ from backtest import ma_crossover, equal_weight_monthly
 from correlation_beta import MAG7, daily_returns, correlation_matrix, rolling_correlation, beta_regression
 from data_loader import load_prices, get_adj_close
 
-# 中文字体：Mac 自带的 Arial Unicode MS，不设的话中文会显示成方框
-plt.rcParams["font.family"] = "Arial Unicode MS"
+# 中文字体：按顺序找，Mac 用 Arial Unicode MS，Windows 用微软雅黑，Linux 用 Noto；都没有中文会显示成方框
+plt.rcParams["font.family"] = ["Arial Unicode MS", "Microsoft YaHei", "Noto Sans CJK SC"]
 # 这个字体里没有数学负号，关掉后坐标轴的负数用普通减号显示
 plt.rcParams["axes.unicode_minus"] = False
 # 字号：默认 10 太小，统一放大

@@ -1,39 +1,176 @@
 # Magnificent 7 Stock Analysis & Backtesting Dashboard
 # 美股科技七巨头数据分析与回测看板
 
-> 🚧 **Work in progress / 开发中**
+> 🚧 **Work in progress / 开发中** — core analysis and a 4-page dashboard are done; a memory-chip cycle module and an online version are in progress.
+> 核心分析与 4 页看板已完成；存储芯片周期模块与线上版开发中。
 
 ## Overview / 项目简介
 
 An end-to-end data analysis project on the "Magnificent 7" US tech stocks
-(AAPL, MSFT, NVDA, GOOGL, AMZN, META, TSLA), benchmarked against SPY and QQQ,
-using daily data from January 2015 to the present.
+(AAPL, MSFT, NVDA, GOOGL, AMZN, META, TSLA), benchmarked against SPY and QQQ.
+Daily prices from January 2015 onward are downloaded with yfinance, stored in MySQL,
+analysed with Pandas, and presented in an interactive Streamlit dashboard.
+The project asks three questions: How do these stocks trade off return against risk?
+Do their returns behave like a normal distribution? Can a simple trading rule beat buy-and-hold?
 
-一个端到端的数据分析项目：以美股科技七巨头（AAPL、MSFT、NVDA、GOOGL、AMZN、META、TSLA）为对象，
-以 SPY、QQQ 为基准，使用 2015 年 1 月至今的日度数据。
+一个端到端的数据分析项目：以美股科技七巨头为对象，以 SPY、QQQ 为基准。
+用 yfinance 下载 2015 年 1 月至今的日度数据，存入 MySQL，用 Pandas 分析，最后做成可交互的 Streamlit 看板。
+项目回答三个问题：这些股票的收益和风险如何权衡？收益率是否服从正态分布？简单的交易规则能否跑赢买入持有？
 
-## Planned Features / 计划功能
+## Key Findings / 主要发现
 
-| English | 中文 |
-|---|---|
-| Performance metrics: cumulative & annualized return, volatility, max drawdown, Sharpe ratio | 表现指标：累计/年化收益、年化波动率、最大回撤、夏普比率 |
-| Return distribution: histogram vs. normal, skewness/kurtosis, 95% VaR | 收益率分布：直方图对比正态分布、偏度/峰度、95% VaR |
-| Correlation heatmap and 60-day rolling correlation | 相关性热力图与 60 日滚动相关 |
-| CAPM regression against SPY: Beta, Alpha, R² | 对 SPY 的 CAPM 回归：Beta、Alpha、R² |
-| Backtests: moving-average crossover vs. buy-and-hold; equal-weight portfolio vs. SPY | 回测：均线交叉 vs 买入持有；七巨头等权组合 vs SPY |
-| Interactive multi-page Streamlit dashboard | Streamlit 多页面交互看板 |
+Sample: 2 Jan 2015 – 9 Oct 2026, 13 tickers, 35,930 daily rows. Re-running the fetch script downloads newer data, so your numbers will differ slightly.
+样本：2015-01-02 至 2026-10-09，13 只标的，35,930 行日度数据。重新运行取数脚本会拿到更新的数据，数字会略有不同。
 
-## Tech Stack / 技术栈
+| | Finding | 发现 |
+|---|---|---|
+| Risk & return | NVDA has the highest Sharpe ratio (1.40, 69% a year); SPY's is 0.68. Every Mag 7 stock had a drawdown of at least 37%. | NVDA 夏普最高（1.40，年化 69%），SPY 为 0.68；七巨头最大回撤都在 37% 以上 |
+| Fat tails | Daily returns are not normal: excess kurtosis is above 0 for every ticker. SPY fell more than 5% on 6 days; a normal distribution expects 0.007 such days. | 收益率不服从正态：所有标的超额峰度都大于 0。SPY 单日跌超 5% 有 6 天，正态分布下期望只有 0.007 天 |
+| Correlation | Pairwise correlations among the Mag 7 range from 0.34 to 0.64. AAPL–MSFT's full-period correlation is 0.62, but its 60-day rolling correlation hit 0.95 in the 2020 sell-off. | 七巨头两两相关 0.34–0.64；AAPL–MSFT 全期 0.62，2020 年暴跌时 60 日滚动相关升到 0.95 |
+| Beta | Every Mag 7 stock has a beta above 1 (NVDA 1.77). TSLA's R² is only 0.24: most of its moves are company-specific. | 七巨头 Beta 全部大于 1（NVDA 1.77）；TSLA 的 R² 只有 0.24，大部分波动来自公司自身 |
+| Backtest 1 | A 50/200-day moving-average crossover underperformed buy-and-hold on all 9 tickers tested. It reduced the maximum drawdown on 7 of them (META from −77% to −38%), but not on SPY (unchanged, the 2020 crash was too fast) or AAPL (worse, after repeated false signals). | 50/200 日均线交叉在 9 个标的上收益全部低于买入持有；其中 7 个标的最大回撤下降（META 从 −77% 降到 −38%），SPY 不变（2020 年暴跌太快），AAPL 反而更大（被反复的假信号打脸） |
+| Backtest 2 | An equal-weight Mag 7 portfolio rebalanced monthly turned $1 into $36, vs $4.7 for SPY. The result is inflated by survivorship bias (see Limitations). | 七巨头等权月度再平衡组合 1 美元变 36 美元，SPY 为 4.7 美元；这个结果被幸存者偏差放大了（见局限） |
 
-Python · yfinance · MySQL (PyMySQL) · Pandas · NumPy · SciPy · Matplotlib · Streamlit
+![Daily return distribution of SPY vs normal](figures/hist_SPY.png)
+
+![Backtest equity curves](figures/backtest_equity.png)
+
+More charts are in [`figures/`](figures/). 更多图表见 `figures/` 文件夹。
+
+## Dashboard / 看板
+
+| Page | Content | 内容 |
+|---|---|---|
+| Overview | Performance table and growth of $1 for any selection of tickers and dates | 任选股票和日期的指标表与净值曲线 |
+| Stock Deep Dive | Price with 50/200-day MAs, drawdown, return distribution, beta | 单只股票：均线、回撤、收益率分布、Beta |
+| Correlation | Heatmap, rolling correlation with adjustable window, CAPM table | 热力图、可调窗口的滚动相关、CAPM 回归表 |
+| Backtest | MA crossover with adjustable windows; equal-weight portfolio vs SPY | 可调参数的均线策略；等权组合 vs SPY |
+
+![Dashboard overview page](figures/dashboard_overview.png)
+
+![Dashboard backtest page](figures/dashboard_backtest.png)
+
+## Methods / 方法
+
+| Metric | How it is calculated | 计算方法 |
+|---|---|---|
+| Daily return | Adjusted close today / yesterday − 1 | 复权收盘价 今天 / 昨天 − 1 |
+| Annual return | Compound annual growth rate over the period | 复合年增长率 |
+| Annual volatility | Std. dev. of daily returns × √252 | 日收益率标准差 × √252 |
+| Max drawdown | Largest fall from a previous peak | 相对此前最高点的最大跌幅 |
+| Sharpe ratio | (Annual return − 2%) / annual volatility | （年化收益 − 2%）/ 年化波动率 |
+| VaR (95%, 99%) | Historical: 5th / 1st percentile of daily returns. Normal: mean − 1.645σ / 2.326σ | 历史法取分位数；正态法用均值减 1.645 / 2.326 倍标准差 |
+| Beta, alpha, R² | OLS regression of daily stock returns on SPY returns (`scipy.stats.linregress`) | 个股日收益对 SPY 日收益做线性回归 |
+| MA crossover | Hold when the 50-day MA is above the 200-day MA, otherwise cash; signal applied next day; 0.1% per trade | 50 日均线在 200 日均线上方持有，否则空仓；信号次日生效；每笔 0.1% |
+| Equal weight | 1/7 in each Mag 7 stock, rebalanced on the first trading day of each month; 0.1% on traded value | 七只各 1/7，每月第一个交易日再平衡；按调整金额收 0.1% |
+
+## Data Pipeline / 数据流程
+
+```
+yfinance  →  fetch_data.py  →  MySQL (stocks, daily_prices)  →  data_loader.py  →  Pandas analysis  →  Streamlit
+                                                                                     metrics.py
+                                                                                     correlation_beta.py
+                                                                                     backtest.py
+                                                                                     charts.py → figures/
+```
+
+- `daily_prices` uses a composite primary key `(ticker, trade_date)`, and the fetch script uses
+  `INSERT ... ON DUPLICATE KEY UPDATE`, so it can be re-run safely.
+  价格表用 `(ticker, trade_date)` 联合主键，取数脚本用 `ON DUPLICATE KEY UPDATE`，可以反复运行不产生重复。
+- All returns use **Adjusted Close** (adjusted for splits and dividends).
+  所有收益率都用复权收盘价（拆股 + 分红调整）。
+
+## Data Cleaning / 数据清洗
+
+`src/check_data.py` checks for missing values, impossible prices (e.g. high < low) and daily moves above 20%.
+There were no missing values or impossible prices. Of the 16 daily moves above 20%, 15 were confirmed as genuine
+trading, most matching news such as earnings, the 2020 crash or tariff announcements. One, SNDK +28.6% on 18 Feb 2025, came from
+**when-issued trading before Sandisk's spin-off from Western Digital**: volume was 0.2–1.3 million shares a day
+until regular trading began on 24 Feb 2025 (33.8 million shares). These rows were removed and the fetch script
+now filters each ticker by its listing date.
+
+`src/check_data.py` 检查缺失值、不合理价格（如最高价 < 最低价）和单日涨跌超过 20%。没有缺失值和不合理价格。
+16 次超过 20% 的涨跌中，15 次确认为真实交易，大多能对应到财报、2020 年暴跌、关税等消息；另 1 次（SNDK 2025-02-18 +28.6%）
+来自闪迪从西部数据分拆前的**预发行交易**：2025-02-24 正式上市前每天只成交 20 万–130 万股，上市当天为 3,380 万股。
+这些行已删除，取数脚本也按上市日过滤。
+
+## Limitations / 局限
+
+- **Survivorship bias.** The Mag 7 were chosen in hindsight as the biggest winners of the decade. The equal-weight
+  backtest shows how these seven stocks did, not a strategy an investor in 2015 could have followed.
+  **幸存者偏差**：七巨头是事后挑出来的赢家，等权回测只说明这七只过去表现好，不是 2015 年的投资者能执行的策略。
+- **Short histories.** SNDK has about 1.6 years of data, so its annualized figures (over 700% a year) are not meaningful.
+  **样本过短**：SNDK 只有约 1.6 年数据，年化指标（700% 以上）没有参考意义。
+- **Simplifications.** A constant 2% risk-free rate; trades filled at the close with a flat 0.1% cost; CAPM regression
+  on raw rather than excess returns.
+  **简化假设**：无风险利率固定 2%；按收盘价成交、每笔成本 0.1%；CAPM 回归用原始收益而非超额收益。
+- **No look-ahead in the backtest.** Signals are computed at the close and applied from the next trading day.
+  **回测无前视偏差**：信号用当天收盘价计算，次日才生效。
+- Past performance does not predict future results. 过去的表现不代表未来。
+
+## Run Locally / 本地运行
+
+Tested with Python 3.12 and MySQL 8.0 (8.0.19 or later is required for the `INSERT ... AS new` syntax).
+测试环境：Python 3.12、MySQL 8.0（`INSERT ... AS new` 语法需要 8.0.19 及以上）。
+
+```bash
+# 1. Install dependencies / 安装依赖
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+
+# 2. Create the database and tables / 建库建表
+mysql -u root -p < sql/schema.sql
+
+# 3. Database config / 数据库配置：copy the template and fill in your password
+cp .env.example .env
+
+# 4. Download data / 下载数据
+python src/fetch_data.py
+
+# 5. Start the dashboard / 启动看板
+streamlit run app.py
+```
+
+The figures use Chinese labels; `charts.py` looks for Arial Unicode MS (macOS), Microsoft YaHei (Windows) or Noto Sans CJK SC (Linux).
+图表标签是中文，`charts.py` 会依次使用 Arial Unicode MS（Mac）、微软雅黑（Windows）、Noto Sans CJK SC（Linux）。
+
+Each analysis script can also be run on its own, e.g. `python src/metrics.py` or `python src/backtest.py`;
+`python src/charts.py` regenerates the figures.
+每个分析脚本都可以单独运行，如 `python src/metrics.py`；`python src/charts.py` 重新生成图表。
 
 ## Project Structure / 项目结构
 
 ```
 mag7-stock-dashboard/
-├── data/              # Data snapshot for the online version / 线上版使用的数据快照
-├── src/               # Data fetching, cleaning and analysis code / 取数、清洗与分析代码
-├── pages/             # Streamlit dashboard pages / 看板各页面
-├── requirements.txt   # Python dependencies / 依赖库
-└── .env.example       # Database config template / 数据库配置模板
+├── app.py                  # Dashboard home page (Overview) / 看板首页
+├── pages/                  # Other dashboard pages / 看板其他页面
+├── src/
+│   ├── fetch_data.py       # yfinance → MySQL
+│   ├── data_loader.py      # MySQL → Pandas
+│   ├── check_data.py       # Data quality checks / 数据体检
+│   ├── metrics.py          # Return, volatility, drawdown, Sharpe, VaR / 表现指标与收益率分布
+│   ├── correlation_beta.py # Correlation and CAPM regression / 相关性与 Beta
+│   ├── backtest.py         # Two backtests / 两个回测
+│   ├── charts.py           # Static charts → figures/ / 分析图表
+│   └── dashboard_common.py # Shared dashboard helpers / 看板共用函数
+├── sql/schema.sql          # Database schema / 建表语句
+├── figures/                # Generated charts and dashboard screenshots / 图表与看板截图
+├── notebooks/              # Exploratory scripts / 探索性脚本
+├── data/                   # Data snapshot for the online version (planned) / 线上版数据快照（计划中）
+├── requirements.txt
+└── .env.example            # Database config template / 数据库配置模板
 ```
+
+## Tech Stack / 技术栈
+
+Python · yfinance · MySQL (PyMySQL) · Pandas · NumPy · SciPy · Matplotlib · Streamlit
+
+## Disclaimer / 免责声明
+
+For learning purposes only, not investment advice. Price data comes from Yahoo Finance via yfinance and is subject to Yahoo's terms of use.
+仅供学习，不构成投资建议。价格数据来自 Yahoo Finance（通过 yfinance 获取），使用须遵守 Yahoo 的条款。
+
+## Author / 作者
+
+Yu (Cyrus) Chen · [GitHub @CyrusChan22](https://github.com/CyrusChan22)

@@ -1,4 +1,4 @@
-# 试用 yfinance：下载一只股票，看看数据长什么样
+# 探索性脚本（10/10 第一次试用 yfinance）：下载一只股票，看看数据长什么样；正式取数见 src/fetch_data.py
 import pandas as pd
 import yfinance as yf
 
