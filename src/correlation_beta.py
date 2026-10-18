@@ -36,6 +36,7 @@ def beta_regression(returns, ticker, market="SPY"):
     return {
         "ticker": ticker,
         "beta": result.slope,                          # 斜率：大盘涨 1%，个股平均涨多少
+        # ⭐⭐ 面试重点：Alpha 是日截距 × 252 换成每年；它是“大盘解释不了的收益”，事后算出来的，不代表以后还有
         "alpha_annual": result.intercept * TRADING_DAYS,  # 截距：大盘解释不了的那部分日收益，换算成每年
         "r_squared": result.rvalue ** 2,               # 个股的波动有多少比例能被大盘解释
         "days": len(data),

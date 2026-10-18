@@ -36,10 +36,12 @@ def save(fig, filename):
     print("已保存：", path)
 
 
+# ⭐⭐⭐ 面试必背：这张图证明收益率是肥尾——左尾真实柱子明显高于正态曲线（SPY 跌超 5% 实际 6 天，正态只预期 0.007 天）
 def plot_return_histogram(adj_close, ticker):
     """日收益率直方图 + 同均值同标准差的正态分布曲线"""
     returns = adj_close[ticker].dropna().pct_change().dropna()
 
+    # ⭐⭐ 面试重点：正态曲线用这只股票自己的均值和标准差 —— 中心和宽度对齐后，差别只剩“形状”
     # 正态曲线：用这只股票自己的均值和标准差
     x = np.linspace(returns.min(), returns.max(), 500)
     y = stats.norm.pdf(x, returns.mean(), returns.std())
@@ -48,6 +50,7 @@ def plot_return_histogram(adj_close, ticker):
     fig, (ax_all, ax_tail) = plt.subplots(1, 2, figsize=(14, 5.5))
     tail_end = returns.mean() - 2 * returns.std()  # 比平均低 2 个标准差以下，算“大跌”
     for ax in [ax_all, ax_tail]:
+        # ⭐⭐ 面试重点：density=True 让柱子和正态曲线用同一个纵轴刻度（概率密度），才能叠在一起比
         # density=True：柱子高度换算成“概率密度”，才能和正态曲线画在同一个刻度上
         ax.hist(returns, bins=100, density=True, color=BLUE, alpha=0.8, label="实际日收益率")
         ax.plot(x, y, color=ORANGE, linewidth=2, label="正态分布")
@@ -73,6 +76,7 @@ def plot_correlation_heatmap(returns, tickers):
     corr = correlation_matrix(returns, tickers)
 
     fig, ax = plt.subplots(figsize=(9, 7.5))
+    # ⭐⭐ 面试重点：vmin=0、vmax=1 固定“颜色尺”，颜色深浅才能直接对应相关系数大小
     # imshow 把一个表格画成一格一格的颜色；vmin、vmax 固定颜色对应 0 到 1
     image = ax.imshow(corr, cmap=BLUES, vmin=0, vmax=1)
 
@@ -115,6 +119,7 @@ def plot_rolling_correlation(returns, ticker_a, ticker_b, window=60):
 
 def plot_beta_scatter(returns, tickers, market="SPY"):
     """Beta 回归散点图：每个点是一天，横轴大盘收益、纵轴个股收益，再画上回归直线"""
+    # ⭐⭐ 面试重点：散点图里 Beta = 直线斜率，R² = 点贴着直线的紧密程度；两张图同刻度才能直接比 MSFT 和 TSLA
     # sharex、sharey：几张小图用同一套刻度，才能直接比较
     fig, axes = plt.subplots(1, len(tickers), figsize=(7 * len(tickers), 6), sharex=True, sharey=True)
     for ax, ticker in zip(axes, tickers):
@@ -124,6 +129,7 @@ def plot_beta_scatter(returns, tickers, market="SPY"):
         # s 是点的大小，alpha 半透明：点很多时，重叠越多的地方颜色越深
         ax.scatter(data[market], data[ticker], s=6, alpha=0.3, color=BLUE)
 
+        # ⭐ 了解：alpha_annual 是年化的，画日收益的直线要除以 252 换回“每天”
         # 回归直线：y = alpha + beta × x，alpha 要换回“每天”的单位
         x = np.linspace(data[market].min(), data[market].max(), 100)
         y = result["alpha_annual"] / 252 + result["beta"] * x
@@ -159,6 +165,7 @@ def plot_backtest_equity(adj_close):
     spy = spy / spy.iloc[0]  # 换算成起点 = 1 的净值
     ax_ew.plot(portfolio.index, portfolio, color=ORANGE, linewidth=2, label="七巨头等权（月度再平衡）")
     ax_ew.plot(spy.index, spy, color=BLUE, linewidth=2, label="SPY")  # SPY 两张图都用蓝色，颜色跟着标的走
+    # ⭐⭐ 面试重点：对数刻度 —— 纵轴上“翻一倍”的距离都一样长，36 倍和 4 倍才能放在一张图里看清
     # 对数刻度：涨 1 倍的距离都一样长，36 倍和 4 倍才能放在一张图里看清
     ax_ew.set_yscale("log")
     ax_ew.set_yticks([1, 2, 5, 10, 20, 40])  # 刻度直接写成倍数，不用 10 的几次方
