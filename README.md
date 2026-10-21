@@ -1,8 +1,8 @@
 # Magnificent 7 Stock Analysis & Backtesting Dashboard
 # 美股科技七巨头数据分析与回测看板
 
-> 🚧 **Work in progress / 开发中** — core analysis, the memory-chip cycle analysis and a 5-page dashboard are done; an online version is in progress.
-> 核心分析、存储芯片周期分析与 5 页看板已完成；线上版开发中。
+**🔗 Live dashboard / 在线看板：https://cyrus-mag7-dashboard.streamlit.app/**
+(Free hosting: if the app has been idle, it may take about 30 seconds to wake up. 免费托管，长时间没人访问会休眠，打开时需等约 30 秒唤醒。)
 
 ## Overview / 项目简介
 
@@ -65,6 +65,8 @@ a peak after a 30% fall from the high. One cycle = trough → peak → next trou
 
 ## Dashboard / 看板
 
+Try it online / 在线体验：https://cyrus-mag7-dashboard.streamlit.app/
+
 | Page | Content | 内容 |
 |---|---|---|
 | Overview | Performance table and growth of $1 for any selection of tickers and dates | 任选股票和日期的指标表与净值曲线 |
@@ -102,6 +104,11 @@ yfinance  →  fetch_data.py  →  MySQL (stocks, daily_prices)  →  data_loade
                                                                                      memory_cycle.py
                                                                                      charts.py → figures/
 ```
+
+- **Online version / 线上版.** Streamlit Cloud cannot reach a local MySQL server, so `src/export_snapshot.py` exports the table to
+  `data/prices.csv`. `data_loader.py` reads MySQL when a `.env` config is present and falls back to the CSV snapshot otherwise,
+  so the analysis and dashboard code is the same in both places.
+  Streamlit Cloud 连不到本机的 MySQL，所以用 `src/export_snapshot.py` 把数据导出成 `data/prices.csv`。`data_loader.py` 有 `.env` 配置时读 MySQL，没有就读快照，分析和看板代码两边完全一样。
 
 - `daily_prices` uses a composite primary key `(ticker, trade_date)`, and the fetch script uses
   `INSERT ... ON DUPLICATE KEY UPDATE`, so it can be re-run safely.
@@ -167,6 +174,9 @@ python src/fetch_data.py
 streamlit run app.py
 ```
 
+**No MySQL? / 没有 MySQL？** Skip steps 2–4: without a `.env` file the app reads the snapshot in `data/prices.csv`.
+跳过第 2–4 步即可：没有 `.env` 时程序会自动读 `data/prices.csv` 快照。
+
 The figures use Chinese labels; `charts.py` looks for Arial Unicode MS (macOS), Microsoft YaHei (Windows) or Noto Sans CJK SC (Linux).
 图表标签是中文，`charts.py` 会依次使用 Arial Unicode MS（Mac）、微软雅黑（Windows）、Noto Sans CJK SC（Linux）。
 
@@ -182,7 +192,8 @@ mag7-stock-dashboard/
 ├── pages/                  # Other dashboard pages / 看板其他页面
 ├── src/
 │   ├── fetch_data.py       # yfinance → MySQL
-│   ├── data_loader.py      # MySQL → Pandas
+│   ├── data_loader.py      # MySQL (or CSV snapshot) → Pandas
+│   ├── export_snapshot.py  # MySQL → data/prices.csv
 │   ├── check_data.py       # Data quality checks / 数据体检
 │   ├── metrics.py          # Return, volatility, drawdown, Sharpe, VaR / 表现指标与收益率分布
 │   ├── correlation_beta.py # Correlation and CAPM regression / 相关性与 Beta
@@ -193,7 +204,7 @@ mag7-stock-dashboard/
 ├── sql/schema.sql          # Database schema / 建表语句
 ├── figures/                # Generated charts and dashboard screenshots / 图表与看板截图
 ├── notebooks/              # Exploratory scripts / 探索性脚本
-├── data/                   # Data snapshot for the online version (planned) / 线上版数据快照（计划中）
+├── data/prices.csv         # Data snapshot for the online version / 线上版数据快照
 ├── requirements.txt
 └── .env.example            # Database config template / 数据库配置模板
 ```
