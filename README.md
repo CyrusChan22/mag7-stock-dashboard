@@ -1,7 +1,8 @@
 # Magnificent 7 Stock Analysis & Backtesting Dashboard
 # 美股科技七巨头数据分析与回测看板
 
-**🔗 Live dashboard / 在线看板：https://cyrus-mag7-dashboard.streamlit.app/**
+**🔗 Live dashboard / 在线看板：https://cyrus-mag7-dashboard.streamlit.app/**  
+**📄 Full analysis report / 完整分析报告：[REPORT.md](REPORT.md)**  
 (Free hosting: if the app has been idle, it may take about 30 seconds to wake up. 免费托管，长时间没人访问会休眠，打开时需等约 30 秒唤醒。)
 
 ## Overview / 项目简介
@@ -55,9 +56,9 @@ a peak after a 30% fall from the high. One cycle = trough → peak → next trou
 - **The 2025–26 rally is the largest in the sample.** From April 2025 MU rose 7.1x in 11 months, against a previous record of 6.6x in 25 months.
   Counting one 30% pull-back in March 2026 as a pause, it rose about 19x in 15 months.
   **2025–26 年这轮上涨是样本里最大的**：2025 年 4 月起 11 个月涨 7.1 倍，此前最大是 25 个月 6.6 倍；把 2026 年 3 月那次 30% 回调算作中途回调，15 个月涨了约 19 倍。
-- **But the swings have not gone away.** After peaking at $1,213 in June 2026, MU fell 39% within a month, in line with past downturns (−30% to −58%).
+- **But the swings have not gone away.** After peaking at $1,213 in June 2026, MU fell 39% in five weeks, in line with past downturns (−30% to −58%).
   As of 9 Oct 2026 it is 15% below the peak and the method has not yet confirmed a trough.
-  **但大起大落还在**：2026 年 6 月见顶 1213 美元后，一个月内跌 39%，与历次下跌（−30% 到 −58%）相当；截至 2026-10-09 比峰顶低 15%，谷底尚未确认。
+  **但大起大落还在**：2026 年 6 月见顶 1213 美元后，五周内跌 39%，与历次下跌（−30% 到 −58%）相当；截至 2026-10-09 比峰顶低 15%，谷底尚未确认。
 
 ![MU cycles compared](figures/cycle_rounds_MU.png)
 
