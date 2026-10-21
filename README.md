@@ -1,8 +1,8 @@
 # Magnificent 7 Stock Analysis & Backtesting Dashboard
 # 美股科技七巨头数据分析与回测看板
 
-> 🚧 **Work in progress / 开发中** — core analysis, a 4-page dashboard and the memory-chip cycle analysis are done; a dashboard page for the cycle module and an online version are in progress.
-> 核心分析、4 页看板与存储芯片周期分析已完成；存储周期看板页与线上版开发中。
+> 🚧 **Work in progress / 开发中** — core analysis, the memory-chip cycle analysis and a 5-page dashboard are done; an online version is in progress.
+> 核心分析、存储芯片周期分析与 5 页看板已完成；线上版开发中。
 
 ## Overview / 项目简介
 
@@ -71,6 +71,7 @@ a peak after a 30% fall from the high. One cycle = trough → peak → next trou
 | Stock Deep Dive | Price with 50/200-day MAs, drawdown, return distribution, beta | 单只股票：均线、回撤、收益率分布、Beta |
 | Correlation | Heatmap, rolling correlation with adjustable window, CAPM table | 热力图、可调窗口的滚动相关、CAPM 回归表 |
 | Backtest | MA crossover with adjustable windows; equal-weight portfolio vs SPY | 可调参数的均线策略；等权组合 vs SPY |
+| Memory Cycle | Peaks and troughs with adjustable thresholds, cycle-by-cycle table, risk vs Mag 7 and SPY | 阈值可调的峰谷识别、历次周期对比表、与七巨头和 SPY 的风险对比 |
 
 ![Dashboard overview page](figures/dashboard_overview.png)
 
