@@ -3,7 +3,9 @@
 # 试运行方法（在项目文件夹里）：python src/memory_cycle.py
 import pandas as pd
 
+from correlation_beta import MAG7, daily_returns, beta_table
 from data_loader import load_prices, get_adj_close
+from metrics import performance_table
 
 UP = 0.50    # 从低点涨超 50%，确认那个低点是谷底
 DOWN = 0.30  # 从高点跌超 30%，确认那个高点是峰顶
@@ -83,6 +85,54 @@ def cycle_table(points):
     return table
 
 
+# ⭐⭐⭐ 面试必背：当前这轮还没结束（下一个转折点没确认），只能说“到目前为止”跌/涨了多少，放进历史里比，不预测
+def current_position(price, points, up=UP, down=DOWN):
+    """当前这轮的位置：最后一个转折点之后，到今天为止的情况"""
+    last = points.iloc[-1]                  # 最后一个确认的转折点
+    after = price[price.index >= last["date"]]   # 从那天到今天的价格
+    latest = price.iloc[-1]
+    if last["type"] == "peak":
+        # 最后是峰顶 → 现在在下跌期：看峰顶以来最深跌到哪、现在离峰顶多远
+        deepest = after.min()
+        return {
+            "phase": "down",
+            "since": last["date"].date(),
+            "since_price": last["price"],
+            "months": (price.index[-1] - last["date"]).days / 30.44,
+            "latest": latest,
+            "change_now": latest / last["price"] - 1,          # 今天比峰顶跌了多少
+            "extreme": deepest / last["price"] - 1,            # 峰顶以来最深跌了多少
+            "extreme_date": after.idxmin().date(),
+            "confirm_level": deepest * (1 + up),               # 涨到这里才会确认谷底
+        }
+    # 最后是谷底 → 现在在上涨期：看谷底以来最高涨到哪
+    highest = after.max()
+    return {
+        "phase": "up",
+        "since": last["date"].date(),
+        "since_price": last["price"],
+        "months": (price.index[-1] - last["date"]).days / 30.44,
+        "latest": latest,
+        "change_now": latest / last["price"] - 1,
+        "extreme": highest / last["price"] - 1,
+        "extreme_date": after.idxmax().date(),
+        "confirm_level": highest * (1 - down),                 # 跌到这里才会确认峰顶
+    }
+
+
+# ⭐⭐ 面试重点：复用 metrics.py 和 correlation_beta.py 的函数，波动率、回撤、Beta 都是现成的
+def risk_comparison(adj_close, tickers):
+    """存储股 vs 七巨头 vs 大盘：年化波动率、最大回撤、Beta（对 SPY）"""
+    perf = performance_table(adj_close[tickers])
+    returns = daily_returns(adj_close)
+    # SPY 自己对自己回归没有意义（Beta 按定义就是 1），所以不放进回归，合并后补上
+    betas = beta_table(returns, [t for t in tickers if t != "SPY"])
+    table = perf[["start", "annual_volatility", "max_drawdown"]].join(betas[["beta", "r_squared"]])
+    if "SPY" in table.index:
+        table.loc["SPY", ["beta", "r_squared"]] = 1.0
+    return table
+
+
 # 直接运行这个文件时，打印 MU 的转折点和每轮统计表
 if __name__ == "__main__":
     adj_close = get_adj_close(load_prices())
@@ -99,3 +149,10 @@ if __name__ == "__main__":
 
     print("\n=== 每轮统计（NaN = 这一轮的下跌还在进行中）===")
     print(cycle_table(points).round(2))
+
+    print("\n=== 当前这轮 ===")
+    for key, value in current_position(mu, points).items():
+        print(f"{key}: {round(value, 3) if isinstance(value, float) else value}")
+
+    print("\n=== 风险对比（Beta 对 SPY；SNDK 2025 年才上市，样本很短）===")
+    print(risk_comparison(adj_close, ["MU", "WDC", "SNDK", "SOXX"] + MAG7 + ["SPY"]).round(3))

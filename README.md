@@ -1,8 +1,8 @@
 # Magnificent 7 Stock Analysis & Backtesting Dashboard
 # 美股科技七巨头数据分析与回测看板
 
-> 🚧 **Work in progress / 开发中** — core analysis and a 4-page dashboard are done; a memory-chip cycle module and an online version are in progress.
-> 核心分析与 4 页看板已完成；存储芯片周期模块与线上版开发中。
+> 🚧 **Work in progress / 开发中** — core analysis, a 4-page dashboard and the memory-chip cycle analysis are done; a dashboard page for the cycle module and an online version are in progress.
+> 核心分析、4 页看板与存储芯片周期分析已完成；存储周期看板页与线上版开发中。
 
 ## Overview / 项目简介
 
@@ -12,10 +12,12 @@ Daily prices from January 2015 onward are downloaded with yfinance, stored in My
 analysed with Pandas, and presented in an interactive Streamlit dashboard.
 The project asks three questions: How do these stocks trade off return against risk?
 Do their returns behave like a normal distribution? Can a simple trading rule beat buy-and-hold?
+A separate module asks whether memory-chip stocks are still cyclical after the AI-driven rally of 2025–26.
 
 一个端到端的数据分析项目：以美股科技七巨头为对象，以 SPY、QQQ 为基准。
 用 yfinance 下载 2015 年 1 月至今的日度数据，存入 MySQL，用 Pandas 分析，最后做成可交互的 Streamlit 看板。
 项目回答三个问题：这些股票的收益和风险如何权衡？收益率是否服从正态分布？简单的交易规则能否跑赢买入持有？
+另有一个模块研究：经过 2025–26 年 AI 需求带来的大涨，存储芯片股是否仍是周期股。
 
 ## Key Findings / 主要发现
 
@@ -36,6 +38,30 @@ Sample: 2 Jan 2015 – 9 Oct 2026, 13 tickers, 35,930 daily rows. Re-running the
 ![Backtest equity curves](figures/backtest_equity.png)
 
 More charts are in [`figures/`](figures/). 更多图表见 `figures/` 文件夹。
+
+## Memory-Chip Cycle / 存储芯片周期
+
+Are memory-chip stocks cyclical, or has AI demand lifted them out of the cycle? This module answers with historical
+statistics only, not forecasts. It uses Micron (MU) as the main reference, with WDC, SNDK and the SOXX semiconductor ETF for comparison.
+存储芯片股是周期股，还是 AI 需求让它脱离了周期？这个模块只用历史统计回答，不做预测。以美光（MU）为主要参照，WDC、SNDK 和半导体 ETF SOXX 作对比。
+
+**Method / 方法.** A turning point is confirmed only after the price moves far enough: a trough after a 50% rise from the low,
+a peak after a 30% fall from the high. One cycle = trough → peak → next trough. Thresholds are parameters of `find_turning_points()`.
+转折点要等价格走得够远才确认：从低点涨超 50% 确认谷底，从高点跌超 30% 确认峰顶。一轮 = 谷底 → 峰顶 → 下一个谷底。阈值是 `find_turning_points()` 的参数。
+
+- **MU is cyclical.** Since 2015 it has gone through 6 cycles. In each of the first four it rose 2.1–6.6x over 13–25 months, then fell 43–58%.
+  Its annual volatility is 52%, three times SPY's 17.5%, with a beta of 1.70 but an R² of only 0.33: two-thirds of its moves are not explained by the market.
+  **MU 是周期股**：2015 年以来 6 轮，前 4 轮每轮用 13–25 个月涨 2.1–6.6 倍，之后跌 43%–58%。年化波动率 52%，是 SPY 的 3 倍；Beta 1.70，但 R² 只有 0.33，三分之二的波动不能用大盘解释。
+- **The 2025–26 rally is the largest in the sample.** From April 2025 MU rose 7.1x in 11 months, against a previous record of 6.6x in 25 months.
+  Counting one 30% pull-back in March 2026 as a pause, it rose about 19x in 15 months.
+  **2025–26 年这轮上涨是样本里最大的**：2025 年 4 月起 11 个月涨 7.1 倍，此前最大是 25 个月 6.6 倍；把 2026 年 3 月那次 30% 回调算作中途回调，15 个月涨了约 19 倍。
+- **But the swings have not gone away.** After peaking at $1,213 in June 2026, MU fell 39% within a month, in line with past downturns (−30% to −58%).
+  As of 9 Oct 2026 it is 15% below the peak and the method has not yet confirmed a trough.
+  **但大起大落还在**：2026 年 6 月见顶 1213 美元后，一个月内跌 39%，与历次下跌（−30% 到 −58%）相当；截至 2026-10-09 比峰顶低 15%，谷底尚未确认。
+
+![MU cycles compared](figures/cycle_rounds_MU.png)
+
+![Risk comparison: memory stocks vs Mag 7 vs SPY](figures/risk_comparison.png)
 
 ## Dashboard / 看板
 
@@ -63,6 +89,7 @@ More charts are in [`figures/`](figures/). 更多图表见 `figures/` 文件夹�
 | Beta, alpha, R² | OLS regression of daily stock returns on SPY returns (`scipy.stats.linregress`) | 个股日收益对 SPY 日收益做线性回归 |
 | MA crossover | Hold when the 50-day MA is above the 200-day MA, otherwise cash; signal applied next day; 0.1% per trade | 50 日均线在 200 日均线上方持有，否则空仓；信号次日生效；每笔 0.1% |
 | Equal weight | 1/7 in each Mag 7 stock, rebalanced on the first trading day of each month; 0.1% on traded value | 七只各 1/7，每月第一个交易日再平衡；按调整金额收 0.1% |
+| Cycle detection | Threshold rule: a trough is confirmed after a 50% rise from the low, a peak after a 30% fall from the high | 阈值法：从低点涨超 50% 确认谷底，从高点跌超 30% 确认峰顶 |
 
 ## Data Pipeline / 数据流程
 
@@ -71,6 +98,7 @@ yfinance  →  fetch_data.py  →  MySQL (stocks, daily_prices)  →  data_loade
                                                                                      metrics.py
                                                                                      correlation_beta.py
                                                                                      backtest.py
+                                                                                     memory_cycle.py
                                                                                      charts.py → figures/
 ```
 
@@ -106,6 +134,12 @@ now filters each ticker by its listing date.
   **简化假设**：无风险利率固定 2%；按收盘价成交、每笔成本 0.1%；CAPM 回归用原始收益而非超额收益。
 - **No look-ahead in the backtest.** Signals are computed at the close and applied from the next trading day.
   **回测无前视偏差**：信号用当天收盘价计算，次日才生效。
+- **Cycle detection is sensitive to thresholds and the sample is small.** There are only 4–8 cycles depending on the thresholds.
+  The March 2026 fall was −30.3%; with a 31% threshold it no longer counts, and cycles 5 and 6 merge into one.
+  The two main findings (the 2025–26 rally is the largest; it was still followed by a deep fall) hold for every threshold tested
+  (rises of 40–80%, falls of 25–40%). Turning points are only known after the fact, so the method describes history and cannot be used as a trading signal.
+  **周期识别对阈值敏感、样本少**：随阈值不同只有 4–8 轮。2026 年 3 月那次下跌为 −30.3%，阈值改成 31% 就不算一轮，第 5、6 轮合并。
+  两个主要结论（这轮涨幅最大；之后仍有深跌）在测试的各组阈值下（上涨 40%–80%、下跌 25%–40%）都成立。转折点只能事后确认，方法只描述历史，不能当交易信号。
 - Past performance does not predict future results. 过去的表现不代表未来。
 
 ## Run Locally / 本地运行
@@ -152,6 +186,7 @@ mag7-stock-dashboard/
 │   ├── metrics.py          # Return, volatility, drawdown, Sharpe, VaR / 表现指标与收益率分布
 │   ├── correlation_beta.py # Correlation and CAPM regression / 相关性与 Beta
 │   ├── backtest.py         # Two backtests / 两个回测
+│   ├── memory_cycle.py     # Memory-chip cycle detection and comparison / 存储芯片周期识别与对比
 │   ├── charts.py           # Static charts → figures/ / 分析图表
 │   └── dashboard_common.py # Shared dashboard helpers / 看板共用函数
 ├── sql/schema.sql          # Database schema / 建表语句

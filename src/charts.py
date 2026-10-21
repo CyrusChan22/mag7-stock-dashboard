@@ -1,5 +1,6 @@
 # 分析图表：把前面算好的指标画成图，存进 figures/ 文件夹
 # 试运行方法（在项目文件夹里）：python src/charts.py
+import logging
 import os
 
 import matplotlib.pyplot as plt
@@ -10,9 +11,12 @@ from scipy import stats
 from backtest import ma_crossover, equal_weight_monthly
 from correlation_beta import MAG7, daily_returns, correlation_matrix, rolling_correlation, beta_regression
 from data_loader import load_prices, get_adj_close
+from memory_cycle import find_turning_points, cycle_table, current_position, risk_comparison
 
 # 中文字体：按顺序找，Mac 用 Arial Unicode MS，Windows 用微软雅黑，Linux 用 Noto；都没有中文会显示成方框
 plt.rcParams["font.family"] = ["Arial Unicode MS", "Microsoft YaHei", "Noto Sans CJK SC"]
+# 备选字体在本机找不到时 matplotlib 会刷屏警告（不影响出图），把这类提示关掉
+logging.getLogger("matplotlib.font_manager").setLevel(logging.ERROR)
 # 这个字体里没有数学负号，关掉后坐标轴的负数用普通减号显示
 plt.rcParams["axes.unicode_minus"] = False
 # 字号：默认 10 太小，统一放大
@@ -180,6 +184,94 @@ def plot_backtest_equity(adj_close):
     save(fig, "backtest_equity.png")
 
 
+def plot_turning_points(price, points, ticker="MU"):
+    """价格走势 + 阈值法找到的峰顶、谷底；相邻两点之间涂底色（上涨蓝、下跌橙）"""
+    fig, ax = plt.subplots(figsize=(13, 6))
+    for i in range(len(points) - 1):
+        a, b = points.iloc[i], points.iloc[i + 1]
+        color = BLUE if a["type"] == "trough" else ORANGE   # 从谷底出发 = 上涨段
+        ax.axvspan(a["date"], b["date"], color=color, alpha=0.10, linewidth=0)
+    ax.plot(price.index, price.values, color="#2b2b2b", linewidth=1.2)
+    for _, row in points.iterrows():
+        is_peak = row["type"] == "peak"
+        color = BLUE if is_peak else ORANGE
+        ax.scatter([row["date"]], [row["price"]], s=150, marker="*", color=color, edgecolor="white", zorder=5)
+        ax.annotate(f"{row['price']:.0f}", (row["date"], row["price"]), xytext=(0, 10 if is_peak else -18),
+                    textcoords="offset points", ha="center", fontsize=11, color=color)
+    # 价格从 9 美元涨到 1200 美元，用对数刻度才能看清早期的周期
+    ax.set_yscale("log")
+    ax.set_yticks([10, 30, 100, 300, 1000])
+    ax.yaxis.set_major_formatter(plt.FuncFormatter(lambda v, _: f"{v:g}"))
+    ax.yaxis.set_minor_formatter(plt.NullFormatter())
+    ax.set_ylabel("复权收盘价（美元，对数刻度）")
+    ax.set_title(f"{ticker} 的峰顶（蓝星）与谷底（橙星）：浅蓝底 = 上涨段，浅橙底 = 下跌段")
+    ax.spines[["top", "right"]].set_visible(False)
+    save(fig, f"cycle_turning_points_{ticker}.png")
+
+
+# ⭐⭐ 面试重点：当前这轮的下跌还没结束，用“至今最深”放进历史下跌里比，空心柱表示未完成
+def plot_cycle_rounds(cycles, current, ticker="MU"):
+    """左：每轮上涨了几倍；右：每轮之后跌了多少，最后加上当前这轮“至今最深”"""
+    fig, (ax_up, ax_down) = plt.subplots(1, 2, figsize=(14, 5.5))
+    labels = [f"第{i}轮\n{row.trough_date:%Y-%m}" for i, row in cycles.iterrows()]
+
+    # 左图：涨幅用“峰顶是谷底的几倍”表示，比百分比好读
+    multiples = cycles["peak_price"] / cycles["trough_price"]
+    bars = ax_up.bar(labels, multiples, color=BLUE)
+    for bar, m, months in zip(bars, multiples, cycles["up_months"]):
+        ax_up.text(bar.get_x() + bar.get_width() / 2, m, f"{m:.1f} 倍\n{months:.0f} 个月",
+                   ha="center", va="bottom", fontsize=11)
+    ax_up.set_ylim(0, multiples.max() * 1.25)
+    ax_up.set_ylabel("峰顶 ÷ 谷底（倍）")
+    ax_up.set_title("每轮上涨：涨了几倍、用了多久")
+
+    # 右图：已结束的轮次实心柱；当前这轮空心柱（还没结束）
+    done = cycles.dropna(subset=["down_return"])
+    down_labels = [f"第{i}轮" for i in done.index] + ["当前\n(至今最深)"]
+    values = list(done["down_return"]) + [current["extreme"]]
+    bars = ax_down.bar(down_labels, values, color=[ORANGE] * len(done) + ["white"],
+                       edgecolor=[ORANGE] * len(done) + [ORANGE], linewidth=2, hatch=[""] * len(done) + ["//"])
+    months_list = list(done["down_months"]) + [current["months"]]
+    for bar, v, months in zip(bars, values, months_list):
+        ax_down.text(bar.get_x() + bar.get_width() / 2, v, f"{v:.0%}\n{months:.1f} 个月",
+                     ha="center", va="top", fontsize=11)
+    ax_down.axhline(current["change_now"], color="#8a8a85", linestyle="--", linewidth=1.5,
+                    label=f"今天离峰顶 {current['change_now']:.0%}")
+    ax_down.set_ylim(min(values) * 1.35, 0)
+    ax_down.yaxis.set_major_formatter(plt.FuncFormatter(lambda v, _: f"{v:.0%}"))
+    ax_down.set_ylabel("峰顶到下一个谷底的跌幅")
+    ax_down.set_title("每轮之后：跌了多少、用了多久")
+    ax_down.legend(frameon=False, loc="lower left")
+
+    for ax in [ax_up, ax_down]:
+        ax.spines[["top", "right"]].set_visible(False)
+    fig.suptitle(f"{ticker} 历次周期对比（阈值：涨 50% / 跌 30%）")
+    save(fig, f"cycle_rounds_{ticker}.png")
+
+
+def plot_risk_comparison(table, memory, mag7):
+    """散点图：横轴年化波动率、纵轴最大回撤；存储股橙色、七巨头蓝色、大盘灰色"""
+    fig, ax = plt.subplots(figsize=(10, 7))
+    groups = [(memory, ORANGE, "存储股"), (mag7, BLUE, "七巨头"), (["SPY", "SOXX"], "#8a8a85", "大盘 / 半导体 ETF")]
+    for tickers, color, name in groups:
+        sub = table.loc[tickers]
+        ax.scatter(sub["annual_volatility"], sub["max_drawdown"], s=110, color=color, label=name,
+                   edgecolor="white", zorder=3)
+        for ticker, row in sub.iterrows():
+            ax.annotate(f"{ticker}  β={row['beta']:.2f}", (row["annual_volatility"], row["max_drawdown"]),
+                        xytext=(8, -4), textcoords="offset points", fontsize=11)
+    ax.xaxis.set_major_formatter(plt.FuncFormatter(lambda v, _: f"{v:.0%}"))
+    ax.yaxis.set_major_formatter(plt.FuncFormatter(lambda v, _: f"{v:.0%}"))
+    ax.set_xlabel("年化波动率（越往右越颠簸）")
+    ax.set_ylabel("最大回撤（越往下跌得越深）")
+    ax.set_title("风险对比：2015 年至今（SNDK 从 2025-02 上市起算）")
+    ax.legend(frameon=False, loc="upper right")
+    ax.grid(color="#e6e6e3", linewidth=0.8)
+    ax.set_axisbelow(True)
+    ax.spines[["top", "right"]].set_visible(False)
+    save(fig, "risk_comparison.png")
+
+
 # 直接运行这个文件时，把图都画出来
 if __name__ == "__main__":
     adj_close = get_adj_close(load_prices())
@@ -191,3 +283,11 @@ if __name__ == "__main__":
     plot_rolling_correlation(returns, "AAPL", "MSFT")
     plot_beta_scatter(returns, ["MSFT", "TSLA"])
     plot_backtest_equity(adj_close)
+
+    # 存储芯片周期
+    mu = adj_close["MU"].dropna()
+    points = find_turning_points(mu)
+    plot_turning_points(mu, points, "MU")
+    plot_cycle_rounds(cycle_table(points), current_position(mu, points), "MU")
+    memory = ["MU", "WDC", "SNDK"]
+    plot_risk_comparison(risk_comparison(adj_close, memory + MAG7 + ["SOXX", "SPY"]), memory, MAG7)
