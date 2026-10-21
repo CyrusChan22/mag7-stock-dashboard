@@ -1,11 +1,15 @@
-# 数据读取：从 MySQL 把价格读成 Pandas 的 DataFrame
-# 之后的分析和看板都通过这里取数；以后线上版改读数据快照，也只改这个文件
+# 数据读取：把价格读成 Pandas 的 DataFrame
+# 本机有 MySQL 配置（.env）就读数据库；线上版没有，就读仓库里的数据快照 data/prices.csv
+# 之后的分析和看板都通过这里取数，换数据来源只改这个文件
 # 试运行方法（在项目文件夹里）：python src/data_loader.py
 import os
 
 import pandas as pd
 import pymysql
 from dotenv import load_dotenv
+
+# 快照文件的位置：按本文件所在位置找（src/ 的上一层就是项目文件夹），从哪个文件夹运行都能找到
+SNAPSHOT_PATH = os.path.join(os.path.dirname(__file__), "..", "data", "prices.csv")
 
 
 def get_connection():
@@ -21,8 +25,20 @@ def get_connection():
     return conn
 
 
+def load_snapshot():
+    """读数据快照（线上版用）：和数据库里的表一模一样，只是存成了 CSV"""
+    df = pd.read_csv(SNAPSHOT_PATH)
+    df["trade_date"] = pd.to_datetime(df["trade_date"])  # CSV 里日期是文字，转成日期类型
+    return df
+
+
+# ⭐⭐ 面试重点：数据层自动切换——有 .env 读 MySQL，没有（线上）读 CSV 快照；返回的表格式一样，分析和看板代码都不用改
 def load_prices():
-    """读出 daily_prices 全部数据：每只股票每天一行（长表）"""
+    """读出全部价格数据：每只股票每天一行（长表）"""
+    load_dotenv()
+    if not os.getenv("MYSQL_HOST"):   # 没有数据库配置 → 说明在线上，读快照
+        return load_snapshot()
+
     sql = """
         SELECT ticker, trade_date, open, high, low, close, adj_close,
                volume, dividends, stock_splits
